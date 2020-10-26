@@ -1,0 +1,70 @@
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>WEBRTC</title>
+        <style>
+            #log {
+                border: 2px solid red;
+                width: 500px;
+                height: 500px;
+            }
+            .tip {
+                color: blue;
+            }
+            .receive {
+                color: green;
+            }
+            .send {
+                color: blue;
+                text-align: right;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div>
+                <button id="callBtn">请求呼叫</button>
+            </div>
+            <div>
+                <button id="hangBtn">挂机</button>
+            </div>
+            <div>
+                <input id="contentInput" type="text" placeholder="发送文字内容" />
+                <button id="sendBtn">发送</button>
+            </div>
+            <div id="log">
+                <div class="tip">呼叫方点击 请求呼叫</div>
+            </div>
+        </div>
+        <script>
+            /***
+             *操作提示
+             */
+            function tip(msg) {
+                const d = document.createElement('div');
+                d.className = 'tip';
+                d.innerHTML = msg;
+                log.appendChild(d);
+            }
+            /***
+             *操作提示
+             */
+            function receive(msg) {
+                const d = document.createElement('div');
+                d.className = 'receive';
+                d.innerHTML = msg;
+                log.appendChild(d);
+            }
+
+            function send(msg) {
+                const d = document.createElement('div');
+                d.className = 'send';
+                d.innerHTML = msg;
+                log.appendChild(d);
+            }
+
+        </script>
+        <script src="./node_modules/socket.io-client/dist/socket.io.js"></script>
+        <script src="text.js"></script>
+    </body>
+</html>
