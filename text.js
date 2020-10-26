@@ -24,6 +24,18 @@ let fileInfo = {
     name: '',
 };
 
+const username = getQueryString('username');
+const room = getQueryString('room');
+console.error(username, room);
+
+// 获取url参数
+function getQueryString(name) {
+    const reg = new RegExp('(^|&)' + name + '=([^&]*)(&|$)', 'i');
+    const r = window.location.search.substr(1).match(reg);
+    if (r != null) return unescape(r[2]);
+    return null;
+}
+
 // 监听
 const socket = io('http://10.129.20.203:3000');
 socket.open();
@@ -64,28 +76,30 @@ pc.ondatachannel = e => {
         console.log('接收通道关闭');
     };
     channel.onmessage = e => {
+        // 是二进制
         if (toString.call(e.data) === '[object ArrayBuffer]') {
             handleFile(e);
         } else {
             const data = JSON.parse(e.data);
             switch (data.type) {
                 case 'string':
-                    receiveText('收到:' + data.text);
+                    receiveText(`${data.username}: ${data.text}`);
                     break;
                 case 'image/jpeg':
                     fileInfo = {
                         fileSize: data.size,
                         fileName: data.name,
                         fileType: data.type,
+                        username: data.username,
                     };
-                    break
+                    break;
                 default:
                     fileInfo = {
                         fileSize: data.size,
                         fileName: data.name,
                         fileType: data.type,
+                        username: data.username,
                     };
-                    console.error(444, data.type);
             }
         }
     };
@@ -191,7 +205,8 @@ callBtn.onclick = () => {
     };
     channel.onmessage = e => {
         // console.log('hehe通道信息');
-        receiveText('收到:' + e.data);
+        const data = JSON.parse(e.data);
+        receiveText(`${data.username}: ${data.text}`);
     };
 };
 
@@ -201,6 +216,7 @@ sendBtn.onclick = () => {
     channel.send(
         JSON.stringify({
             type: 'string',
+            username,
             text: contentInput.value,
         }),
     );
@@ -231,14 +247,15 @@ function receiveText(msg) {
     log.appendChild(d);
 }
 
+// 处理文件
 function handleFile(e) {
     receiveBuffer.push(e.data);
     receivedSize += e.data.byteLength;
     receiveProgress.value = receivedSize;
-    const { fileSize, fileName, fileType } = fileInfo;
+    const { fileSize, fileName, fileType, username: remoteUser } = fileInfo;
 
     if (receivedSize === fileSize) {
-        console.error('------ 文件接收完成 ------')
+        console.error('------ 文件接收完成 ------');
         const received = new Blob(receiveBuffer);
         // 接收完成初始化
         receiveBuffer = [];
@@ -247,17 +264,24 @@ function handleFile(e) {
             href: URL.createObjectURL(received),
             fileName,
             fileSize,
-        }
+            username: remoteUser,
+        };
         if (fileType === 'image/jpeg') {
             receiveImage(fileData);
         } else {
-            receiveFile(fileData)
+            receiveFile(fileData);
         }
     }
 }
 
 // 接收图片
 function receiveImage(info) {
+    const span = document.createElement('span');
+    const span1 = document.createElement('span');
+    span1.innerText = `${info.username}: `;
+    span1.className = 'receive-text';
+    span.appendChild(span1);
+
     const a = document.createElement('a');
     a.className = 'receive-href';
     a.setAttribute('href', info.href);
@@ -267,18 +291,31 @@ function receiveImage(info) {
     img.className = 'receive-img';
     img.setAttribute('src', info.href);
     a.appendChild(img);
-    log.appendChild(a);
+    span.appendChild(a)
+
+    log.appendChild(span);
 }
 
+// 接收文件
 function receiveFile(info) {
     const { href, fileName, fileSize } = info;
+
+    const span = document.createElement('span');
+
+    const span1 = document.createElement('span');
+    span1.innerText = `${info.username}: `;
+    span1.className = 'receive-text';
+    span.appendChild(span1);
+
     const a = document.createElement('a');
     a.className = 'receive-href';
     a.setAttribute('href', href);
     a.download = fileName;
-    a.innerText = `下载 ${fileName} ${fileSize}`;
+    a.innerText = `下载 ${fileName} ${fileSize / 1e3}kb`;
+    span.appendChild(a);
 
-    log.appendChild(a);
+
+    log.appendChild(span);
 }
 
 function send(msg) {
@@ -320,9 +357,10 @@ function sendData() {
     let chunkSize = 16384;
     let file = fileInput.files[0];
     const { name, size, type, lastModified } = file;
-
+    console.error(11111, username);
     channel.send(
         JSON.stringify({
+            username,
             name,
             size,
             type,
@@ -352,12 +390,9 @@ function sendData() {
     };
 
     const readSlice = o => {
-        // console.log('readSlice ', o);
         const slice = file.slice(offset, o + chunkSize);
         fileReader.readAsArrayBuffer(slice);
     };
 
     readSlice(0);
 }
-
-
