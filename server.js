@@ -23,4 +23,9 @@ io.on('connection', socket => {
         console.log('广播：', data);
         socket.broadcast.emit('broadcast', data);
     });
+
+    socket.on('join', data => {
+        console.log('加入：', data)
+        socket.broadcast.emit('joined', data);
+    })
 });
