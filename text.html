@@ -3,6 +3,12 @@
         <meta charset="utf-8" />
         <title>WEBRTC</title>
         <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
             #log {
                 border: 2px solid red;
                 width: 500px;
@@ -23,6 +29,21 @@
                 text-align: right;
                 margin-top: 5px;
             }
+
+            .receive-href {
+                display: block;
+                max-width: 60%;
+                border: 1px solid #d9d9d9;
+                border-radius: 2px;
+                padding: 3px;
+                word-break: break-all;
+                margin-top: 5px;
+            }
+
+            .receive-img {
+                width: 100%;
+            }
+            
             .box {
                 width: 500px;
                 margin: 10px auto;
@@ -30,6 +51,32 @@
                 flex-direction: row;
                 justify-content: space-between;
                 align-items: center;
+            }
+
+            #call-btn {
+                background: green;
+                color: #fff;
+                border: 0;
+                padding: 3px 10px;
+                border-radius: 3px;
+                cursor: pointer;
+            }
+
+            #call-btn:hover {
+                opacity: 0.7;
+            }
+
+            #hang-btn {
+                background: #ea413c;
+                color: #fff;
+                border: 0;
+                padding: 3px 10px;
+                border-radius: 3px;
+                cursor: pointer;
+            }
+
+            #hang-btn:hover {
+                opacity: 0.7;
             }
 
             #fileInput {
@@ -57,25 +104,14 @@
                 align-items: center;
             }
 
-            .receive-href {
-                display: block;
-                max-width: 60%;
-                border: 1px solid #d9d9d9;
-                border-radius: 2px;
-                padding: 3px;
-            }
-
-            .receive-img {
-                width: 100%;
-            }
 
         </style>
     </head>
     <body>
         <div class="container">
             <div class="box">
-                <button id="callBtn">请求呼叫</button>
-                <button id="hangBtn">挂机</button>
+                <button id="call-btn">请求呼叫</button>
+                <button id="hang-btn">挂机</button>
             </div>
             <div id="log">
                 <div class="tip">呼叫方点击 请求呼叫</div>
