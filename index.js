@@ -17,10 +17,10 @@ const localUserId = Math.random()
 const localVideo = document.getElementById('local');
 const remoteVideo = document.getElementById('remote');
 
-const MESSAGE_TYPE_OFFER = 1;
-const MESSAGE_TYPE_ANSWER = 2;
-const MESSAGE_TYPE_CANDIDATE = 3;
-const MESSAGE_TYPE_HANGUP = 4;
+const MESSAGE_TYPE_OFFER = 'offer';
+const MESSAGE_TYPE_ANSWER = 'answer';
+const MESSAGE_TYPE_CANDIDATE = 'candidate';
+const MESSAGE_TYPE_HANGUP = 'hangUp';
 var localStream;
 
 // ice服务器
@@ -37,7 +37,7 @@ const serverConfig = {
 };
 
 // socket
-const socket = io('http://10.129.27.216:3000');
+const socket = io('http://10.129.20.203:3000');
 // 链接
 socket.open();
 

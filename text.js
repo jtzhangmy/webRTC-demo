@@ -61,56 +61,21 @@ socket.on('broadcast', msg => {
 });
 
 // 创建链接
+console.error(1, '实例化 RTCPeerConnection');
 pc = new RTCPeerConnection(conf, mediaConstraints);
 // 接收p2p消息
 pc.ondatachannel = e => {
-    console.log('传输通道打开');
     channel = e.channel;
-    channel.onopen = () => {
-        tip('可以 发送/接收 消息');
-        console.log('接收通道打开');
-    };
-    channel.onclose = () => {
-        tip('关闭消息通道');
-        console.log('接收通道关闭');
-    };
-    channel.onmessage = e => {
-        // 是二进制
-        if (toString.call(e.data) === '[object ArrayBuffer]') {
-            handleFile(e);
-        } else {
-            const data = JSON.parse(e.data);
-            switch (data.type) {
-                case 'string':
-                    receiveText(`${data.username}: ${data.text}`);
-                    break;
-                case 'image/jpeg':
-                    fileInfo = {
-                        fileSize: data.size,
-                        fileName: data.name,
-                        fileType: data.type,
-                        username: data.username,
-                    };
-                    break;
-                default:
-                    fileInfo = {
-                        fileSize: data.size,
-                        fileName: data.name,
-                        fileType: data.type,
-                        username: data.username,
-                    };
-            }
-        }
-    };
+    channelInit()
 };
 
 // 获取ice服务器返回的信息
 pc.onicecandidate = e => {
-    console.log('on ice candidate', e);
     if (e.candidate) {
         //这里传输candidate给对方
         localCandidate = e.candidate;
         if (!remoteCandidate) {
+            console.error(6, '获取candidate, 向远端广播offer', localDescription, localCandidate);
             socket.emit('broadcast', {
                 type: 'offer',
                 data: {
@@ -119,7 +84,6 @@ pc.onicecandidate = e => {
                 },
             });
         }
-        console.error('获取到ice: ', e.candidate);
     }
 };
 pc.onidentityresult = () => {
@@ -153,13 +117,12 @@ pc.ontrack = () => {
 
 // 创建offer
 function createOffer() {
-    console.error(2, '创建offer', 'on negotiation needed');
+    console.error(4, '创建offer');
     pc.createOffer().then(offer => {
-        console.error(3, '向远端广播offer', offer);
         localDescription = offer;
         //这里传输Description 给接听方 , 手动复制
         tip('创建offer');
-        console.error(4, '设置本地offer');
+        console.error(5, '设置本地offer');
         pc.setLocalDescription(offer);
     });
 }
@@ -168,9 +131,10 @@ function createOffer() {
 function createAnswer() {
     // 1 设置远程description
     pc.setRemoteDescription(new RTCSessionDescription(remoteDescription));
+    pc.addIceCandidate(remoteCandidate);
     // 2 创建answer
     pc.createAnswer().then(function(answer) {
-        console.error(5, '创建远程answer', answer);
+        console.error(7, '创建远程answer', answer);
         localDescription = answer;
         tip('创建answer');
         pc.setLocalDescription(answer);
@@ -182,10 +146,9 @@ function createAnswer() {
         });
     });
     // 3 添加ico后补
-    pc.addIceCandidate(remoteCandidate);
 }
 
-// 结束通讯
+// 通道建立成功
 function finishConnection() {
     const sdp = new RTCSessionDescription(remoteDescription);
     pc.setRemoteDescription(sdp);
@@ -193,22 +156,45 @@ function finishConnection() {
 
 //1 请求呼叫
 callBtn.onclick = () => {
-    console.error(1, '创建dataChannel');
+    console.error(2, '实例化createDataChannel， 创建通道');
     channel = pc.createDataChannel('hehe', mediaConstraints); //可以发送文字什么的
+    channelInit()
+};
+
+// 频道初始化
+function channelInit() {
+    console.error(3, 'channel初始化')
     channel.onopen = () => {
         tip('可以 发送/接收 消息');
-        console.log('hehe通道打开', channel);
+        console.log('接收通道打开');
     };
     channel.onclose = () => {
         tip('关闭消息通道');
-        console.log('hehe通道关闭');
+        console.log('接收通道关闭');
     };
     channel.onmessage = e => {
-        // console.log('hehe通道信息');
-        const data = JSON.parse(e.data);
-        receiveText(`${data.username}: ${data.text}`);
+        // 是二进制
+        if (toString.call(e.data) === '[object ArrayBuffer]') {
+            handleFile(e);
+        } else {
+            const data = JSON.parse(e.data);
+            const { text, size, name, type } = data;
+            switch (data.type) {
+                case 'string':
+                    receiveText(`${data.username}: ${text}`);
+                    break;
+                default:
+                    fileInfo = {
+                        fileSize: size,
+                        fileName: name,
+                        fileType: type,
+                        username: data.username,
+                    };
+                    break;
+            }
+        }
     };
-};
+}
 
 // 发送
 sendBtn.onclick = () => {
@@ -274,15 +260,15 @@ function handleFile(e) {
             username: remoteUser,
         };
         if (fileType === 'image/jpeg') {
-            receiveImage(fileData, 'remote');
+            showImage(fileData, 'remote');
         } else {
-            receiveFile(fileData, 'remote');
+            showFile(fileData, 'remote');
         }
     }
 }
 
 // 接收图片
-function receiveImage(info, from) {
+function showImage(info, from) {
     const div = document.createElement('div');
     div.className = from;
     const span1 = document.createElement('span');
@@ -305,7 +291,7 @@ function receiveImage(info, from) {
 }
 
 // 接收文件
-function receiveFile(info, from) {
+function showFile(info, from) {
     const { href, fileName, fileSize } = info;
 
     const div = document.createElement('div');
@@ -332,7 +318,9 @@ function receiveFile(info, from) {
 const fileInput = document.getElementById('fileInput');
 const fileBtn = document.getElementById('file-btn');
 const sendProgress = document.getElementById('sendProgress');
+const receiveProgress = document.getElementById('receiveProgress');
 const statusMessage = document.getElementById('status');
+const bitrateDiv = document.getElementById('bitrateDiv');
 
 fileInput.addEventListener('change', handleFileInputChange);
 
@@ -380,7 +368,7 @@ function sendFileData() {
 
     sendProgress.max = file.size;
 
-    fileReader = new FileReader();
+    const fileReader = new FileReader();
     fileReader.onerror = error => console.error('Error reading file:', error);
     fileReader.onabort = event => console.log('File reading aborted:', event);
     fileReader.onload = e => {
@@ -400,9 +388,9 @@ function sendFileData() {
             };
 
             if (file.type === 'image/jpeg') {
-                receiveImage(fileData, 'self');
+                showImage(fileData, 'self');
             } else {
-                receiveFile(fileData, 'self');
+                showFile(fileData, 'self');
             }
         }
     };
