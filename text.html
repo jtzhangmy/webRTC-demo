@@ -22,8 +22,25 @@
             }
             .receive-text {
                 color: green;
+            }
+            .self {
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-start;
+                align-items: flex-end;
                 margin-top: 5px;
             }
+            .self .receive-text {
+                color: blue;
+            }
+            .remote {
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-start;
+                align-items: flex-start;
+                margin-top: 5px;
+            }
+
             .send-text {
                 color: blue;
                 text-align: right;
@@ -91,7 +108,8 @@
                 padding-left: 10px;
             }
 
-            #send-btn, #file-btn {
+            #send-btn,
+            #file-btn {
                 width: 80px;
                 height: 30px;
                 border: 2px solid #d9d9d9;
@@ -103,8 +121,6 @@
                 justify-content: center;
                 align-items: center;
             }
-
-
         </style>
     </head>
     <body>
@@ -122,10 +138,10 @@
                 <button id="send-btn">发送</button>
             </div>
             <div class="box">
-                <input id="fileInput" type="file" value="请选择上传的文件">
+                <input id="fileInput" type="file" value="请选择上传的文件" />
                 <span id="status"></span>
             </div>
-            <div class="progress">
+            <!--<div class="progress">
                 <div class="label">Send progress: </div>
                 <progress id="sendProgress" max="0" value="0"></progress>
             </div>
@@ -133,7 +149,7 @@
             <div class="progress">
                 <div class="label">Receive progress: </div>
                 <progress id="receiveProgress" max="0" value="0"></progress>
-            </div>
+            </div>-->
         </div>
         <script src="./node_modules/socket.io-client/dist/socket.io.js"></script>
         <script src="text.js" charset="utf-8"></script>

@@ -26,7 +26,6 @@ let fileInfo = {
 
 const username = getQueryString('username');
 const room = getQueryString('room');
-console.error(username, room);
 
 // 获取url参数
 function getQueryString(name) {
@@ -36,7 +35,7 @@ function getQueryString(name) {
     return null;
 }
 
-// 监听
+// socket监听
 const socket = io('http://10.129.20.203:3000');
 socket.open();
 socket.on('broadcast', msg => {
@@ -105,7 +104,7 @@ pc.ondatachannel = e => {
     };
 };
 
-//
+// 获取ice服务器返回的信息
 pc.onicecandidate = e => {
     console.log('on ice candidate', e);
     if (e.candidate) {
@@ -123,32 +122,32 @@ pc.onicecandidate = e => {
         console.error('获取到ice: ', e.candidate);
     }
 };
-pc.onidentityresult = function() {
+pc.onidentityresult = () => {
     console.log('on identity result');
 };
-pc.onidpassertionerror = function() {
+pc.onidpassertionerror = () => {
     console.log('on id passertion error');
 };
-pc.onidpvalidationerror = function() {
+pc.onidpvalidationerror = () => {
     console.log('on id pvalidation error');
 };
 pc.onnegotiationneeded = createOffer;
-pc.onpeeridentity = function() {
+pc.onpeeridentity = () => {
     console.log('on peeridentity');
 };
-pc.onremovestream = function() {
+pc.onremovestream = () => {
     console.log('on remove stream');
 };
-pc.onconnectionstatechange = function() {
+pc.onconnectionstatechange = () => {
     console.log('on connection state change: ', pc.connectionState);
 };
-pc.oniceconnectionstatechange = function() {
+pc.oniceconnectionstatechange = () => {
     console.log('on ice connection state change: ', pc.iceConnectionState);
 };
-pc.onsignalingstatechange = function() {
+pc.onsignalingstatechange = () => {
     console.log('on signaling state change: ', pc.signalingState);
 };
-pc.ontrack = function() {
+pc.ontrack = () => {
     console.log('on track');
 };
 
@@ -186,6 +185,7 @@ function createAnswer() {
     pc.addIceCandidate(remoteCandidate);
 }
 
+// 结束通讯
 function finishConnection() {
     const sdp = new RTCSessionDescription(remoteDescription);
     pc.setRemoteDescription(sdp);
@@ -220,7 +220,7 @@ sendBtn.onclick = () => {
             text: contentInput.value,
         }),
     );
-    send(contentInput.value);
+    sendText(contentInput.value);
     contentInput.value = '';
 };
 
@@ -230,12 +230,19 @@ hangBtn.onclick = () => {
     channel.close();
     pc.close();
 };
-
+/*------ 展示相关 start ------*/
 // 操作提示
 function tip(msg) {
     const d = document.createElement('div');
     d.className = 'tip';
     d.innerHTML = msg;
+    log.appendChild(d);
+}
+
+function sendText(msg) {
+    const d = document.createElement('div');
+    d.className = 'send-text';
+    d.innerText = msg;
     log.appendChild(d);
 }
 
@@ -267,20 +274,21 @@ function handleFile(e) {
             username: remoteUser,
         };
         if (fileType === 'image/jpeg') {
-            receiveImage(fileData);
+            receiveImage(fileData, 'remote');
         } else {
-            receiveFile(fileData);
+            receiveFile(fileData, 'remote');
         }
     }
 }
 
 // 接收图片
-function receiveImage(info) {
-    const span = document.createElement('span');
+function receiveImage(info, from) {
+    const div = document.createElement('div');
+    div.className = from;
     const span1 = document.createElement('span');
-    span1.innerText = `${info.username}: `;
+    span1.innerText = `${from === 'self' ? username : info.username}: `;
     span1.className = 'receive-text';
-    span.appendChild(span1);
+    div.appendChild(span1);
 
     const a = document.createElement('a');
     a.className = 'receive-href';
@@ -291,39 +299,34 @@ function receiveImage(info) {
     img.className = 'receive-img';
     img.setAttribute('src', info.href);
     a.appendChild(img);
-    span.appendChild(a)
+    div.appendChild(a);
 
-    log.appendChild(span);
+    log.appendChild(div);
 }
 
 // 接收文件
-function receiveFile(info) {
+function receiveFile(info, from) {
     const { href, fileName, fileSize } = info;
 
-    const span = document.createElement('span');
+    const div = document.createElement('div');
+    div.className = from;
 
     const span1 = document.createElement('span');
     span1.innerText = `${info.username}: `;
     span1.className = 'receive-text';
-    span.appendChild(span1);
+    div.appendChild(span1);
 
     const a = document.createElement('a');
     a.className = 'receive-href';
     a.setAttribute('href', href);
     a.download = fileName;
     a.innerText = `下载 ${fileName} ${fileSize / 1e3}kb`;
-    span.appendChild(a);
+    div.appendChild(a);
 
-
-    log.appendChild(span);
+    log.appendChild(div);
 }
 
-function send(msg) {
-    const d = document.createElement('div');
-    d.className = 'send-text';
-    d.innerHTML = msg;
-    log.appendChild(d);
-}
+/*------ 展示相关 end ------*/
 
 /*------ 下载 ------*/
 const fileInput = document.getElementById('fileInput');
@@ -338,7 +341,7 @@ function handleFileInputChange() {
     if (!file) {
         console.log('No file chosen');
     } else {
-        sendData();
+        sendFileData();
 
         sendProgress.value = 0;
         receiveProgress.value = 0;
@@ -352,12 +355,11 @@ fileBtn.onclick = () => {
     fileInput.click();
 };
 
-function sendData() {
+function sendFileData() {
     let offset = 0;
     let chunkSize = 16384;
     let file = fileInput.files[0];
     const { name, size, type, lastModified } = file;
-    console.error(11111, username);
     channel.send(
         JSON.stringify({
             username,
@@ -386,7 +388,23 @@ function sendData() {
         channel.send(result);
         offset += result.byteLength;
         sendProgress.value = offset;
-        if (offset < file.size) readSlice(offset);
+        if (offset < file.size) {
+            readSlice(offset);
+        } else {
+            const fileData = {
+                fileName: file.name,
+                fileSize: file.size,
+                fileType: file.type,
+                username,
+                href: URL.createObjectURL(fileInput.files[0]),
+            };
+
+            if (file.type === 'image/jpeg') {
+                receiveImage(fileData, 'self');
+            } else {
+                receiveFile(fileData, 'self');
+            }
+        }
     };
 
     const readSlice = o => {
