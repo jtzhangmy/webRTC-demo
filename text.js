@@ -16,7 +16,6 @@ let pc;
 let mediaConstraints = null;
 let conf = null;
 let channel;
-let localDescription, localCandidate, remoteDescription, remoteCandidate;
 let receiveBuffer = [];
 let receivedSize = 0;
 let fileInfo = {
@@ -43,17 +42,14 @@ socket.on('broadcast', msg => {
         data: { sdp, candidate },
     } = msg;
     switch (msg.type) {
-        case 'offer':
-            tip('接收offer');
-            remoteDescription = sdp;
-            remoteCandidate = candidate;
-            createAnswer();
+        case 'offer-sdp':
+            createAnswerSDP(sdp);
             break;
-        case 'answer':
-            tip('接收answer');
-            remoteDescription = sdp;
-            remoteCandidate = candidate;
-            finishConnection();
+        case 'candidate':
+            pc.addIceCandidate(candidate);
+            break;
+        case 'answer-sdp':
+            receiveAnswerSDP(sdp);
             break;
         default:
             return;
@@ -66,24 +62,20 @@ pc = new RTCPeerConnection(conf, mediaConstraints);
 // 接收p2p消息
 pc.ondatachannel = e => {
     channel = e.channel;
-    channelInit()
+    channelInit();
 };
 
 // 获取ice服务器返回的信息
 pc.onicecandidate = e => {
     if (e.candidate) {
         //这里传输candidate给对方
-        localCandidate = e.candidate;
-        if (!remoteCandidate) {
-            console.error(6, '获取candidate, 向远端广播offer', localDescription, localCandidate);
-            socket.emit('broadcast', {
-                type: 'offer',
-                data: {
-                    sdp: localDescription,
-                    candidate: localCandidate,
-                },
-            });
-        }
+        console.error('广播candidate');
+        socket.emit('broadcast', {
+            type: 'candidate',
+            data: {
+                candidate: e.candidate,
+            },
+        });
     }
 };
 pc.onidentityresult = () => {
@@ -115,55 +107,47 @@ pc.ontrack = () => {
     console.log('on track');
 };
 
-// 创建offer
+/*------ 创建连接相关 start ------*/
 function createOffer() {
     console.error(4, '创建offer');
     pc.createOffer().then(offer => {
-        localDescription = offer;
-        //这里传输Description 给接听方 , 手动复制
-        tip('创建offer');
         console.error(5, '设置本地offer');
         pc.setLocalDescription(offer);
-    });
-}
-
-// 接收offer, 创建answer
-function createAnswer() {
-    // 1 设置远程description
-    pc.setRemoteDescription(new RTCSessionDescription(remoteDescription));
-    pc.addIceCandidate(remoteCandidate);
-    // 2 创建answer
-    pc.createAnswer().then(function(answer) {
-        console.error(7, '创建远程answer', answer);
-        localDescription = answer;
-        tip('创建answer');
-        pc.setLocalDescription(answer);
+        //这里传输Description 给接听方 , 手动复制
+        tip('创建offer');
         socket.emit('broadcast', {
-            type: 'answer',
+            type: 'offer-sdp',
             data: {
-                sdp: localDescription,
+                sdp: offer,
             },
         });
     });
-    // 3 添加ico后补
 }
 
-// 通道建立成功
-function finishConnection() {
-    const sdp = new RTCSessionDescription(remoteDescription);
-    pc.setRemoteDescription(sdp);
+function createAnswerSDP(sdp) {
+    pc.setRemoteDescription(new RTCSessionDescription(sdp));
+    pc.createAnswer().then(answer => {
+        console.error(7, '创建远程answer', answer);
+        tip('接收offer');
+        tip('发送answer');
+        pc.setLocalDescription(answer);
+        socket.emit('broadcast', {
+            type: 'answer-sdp',
+            data: {
+                sdp: answer,
+            },
+        });
+    });
 }
 
-//1 请求呼叫
-callBtn.onclick = () => {
-    console.error(2, '实例化createDataChannel， 创建通道');
-    channel = pc.createDataChannel('hehe', mediaConstraints); //可以发送文字什么的
-    channelInit()
-};
+function receiveAnswerSDP(sdp) {
+    tip('接收answer');
+    pc.setRemoteDescription(new RTCSessionDescription(sdp));
+}
 
 // 频道初始化
 function channelInit() {
-    console.error(3, 'channel初始化')
+    console.error(3, 'channel初始化');
     channel.onopen = () => {
         tip('可以 发送/接收 消息');
         console.log('接收通道打开');
@@ -195,6 +179,14 @@ function channelInit() {
         }
     };
 }
+/*------ 创建连接相关 end ------*/
+
+//1 请求呼叫
+callBtn.onclick = () => {
+    console.error(2, '实例化createDataChannel， 创建通道');
+    channel = pc.createDataChannel('hehe', mediaConstraints); //可以发送文字什么的
+    channelInit();
+};
 
 // 发送
 sendBtn.onclick = () => {
